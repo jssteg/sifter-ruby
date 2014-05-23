@@ -14,13 +14,28 @@ class Sifter::Project < Hashie::Dash
   property :api_issues_url
   property :api_categories_url
 
-  # Fetch all the issues on this project. Returns an array of Sifter::Issue
-  # objects.
-  def issues
-    Sifter.
-      get(api_issues_url).
-      fetch("issues", []).
-      map { |i| Sifter::Issue.new(i) }
+  # Return all issues from a project. Accepts status and priority flags.
+  # Use Sifter::Account.statuses & Sifter::Account.priorities to view 
+  # valid options.
+  def issues(status=nil, prioirty=nil)
+
+    issues = []
+
+    # Build filter string
+    filters = "&s=#{status}" if status
+    filters.to_s << "&p=#{priority}" if prioirty
+    
+    # Inital request url
+    issues_url = api_issues_url + "?page=1&per_page=100" + filters
+    
+    while issues_url do  # while next_page_url is not nil add issues to the list  
+      page = Sifter.get(issues_url + filters.to_s)
+      
+      issues += page.fetch("issues", []).map { |p| Sifter::Issue.new(p) }
+      issues_url = page.fetch("next_page_url")
+    end
+
+    issues
   end
 
   # Fetch all the milestones for this project. Returns an array of
